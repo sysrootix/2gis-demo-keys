@@ -43,7 +43,30 @@ PLATFORM = "https://platform.2gis.ru/ru"
 DASHBOARD = f"{PLATFORM}/dashboard"
 DEMO_CREATE = f"{PLATFORM}/keys/create/demo"
 ID_HOST = "id.platform.2gis.ru"
-CHROME_BIN = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+
+
+def find_chrome() -> Path:
+    for candidate in (
+        Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+        Path("/usr/bin/google-chrome-stable"),
+        Path("/usr/bin/google-chrome"),
+        Path("/usr/bin/chromium"),
+        Path("/usr/bin/chromium-browser"),
+    ):
+        if candidate.exists():
+            return candidate
+    raise SystemExit("не нашёл Chrome: установи Google Chrome или chromium")
+
+
+def chrome_extra_args() -> list[str]:
+    if sys.platform == "darwin":
+        return []
+    return [
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--password-store=basic",
+    ]
 
 UUID_RE = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
@@ -294,13 +317,13 @@ def _free_port() -> int:
 
 
 def launch_native_incognito() -> tuple[subprocess.Popen, Path, str]:
-    if not CHROME_BIN.exists():
-        raise SystemExit(f"не нашёл Chrome: {CHROME_BIN}")
+    chrome = find_chrome()
     port = _free_port()
     profile = Path(tempfile.mkdtemp(prefix="2gis-chrome-incognito-"))
     proc = subprocess.Popen(
         [
-            str(CHROME_BIN),
+            str(chrome),
+            *chrome_extra_args(),
             "--incognito",
             f"--remote-debugging-port={port}",
             f"--user-data-dir={profile}",
