@@ -3,6 +3,7 @@ smailpro_book.json
 2gis_book.json
 2gis-keys.jsonl
 2gis-demo-keys.json
+.venv/
 __pycache__/
 screenshots/
 runs/
