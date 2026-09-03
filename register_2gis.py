@@ -61,12 +61,15 @@ def find_chrome() -> Path:
 def chrome_extra_args() -> list[str]:
     if sys.platform == "darwin":
         return []
-    return [
+    args = [
         "--no-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
         "--password-store=basic",
     ]
+    if not os.environ.get("DISPLAY"):
+        args.append("--headless=new")
+    return args
 
 UUID_RE = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
