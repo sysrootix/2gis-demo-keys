@@ -612,7 +612,7 @@ def page_says(page, pattern: str) -> bool:
 
 def open_register(page) -> None:
     goto_retry(page, PLATFORM, log=log)
-    page.wait_for_timeout(800)
+    page.wait_for_timeout(1200)
     dismiss_banners(page)
     clicked = click_first(
         page,
@@ -632,19 +632,27 @@ def open_register(page) -> None:
         if ID_HOST not in page.url:
             shot(page, Path("screenshots"), "no-keycloak")
             raise NeedUser(f"не попал на Keycloak, url={page.url}", kind="no_form")
-    page.wait_for_timeout(700)
+    page.wait_for_load_state("domcontentloaded")
+    page.wait_for_timeout(1500)
     if page.locator('input[name="fullName"]').count():
         return
-    click_first(
+
+    reg_clicked = click_first(
         page,
         [
-            page.get_by_role("link", name=re.compile(r"Зарегистрироваться", re.I)),
-            page.get_by_role("button", name=re.compile(r"Зарегистрироваться", re.I)),
+            page.get_by_role("button", name=re.compile(r"^Зарегистрироваться$", re.I)),
+            page.get_by_role("link", name=re.compile(r"^Зарегистрироваться$", re.I)),
+            page.get_by_text("Зарегистрироваться", exact=True),
             page.locator('a[href*="login-actions/registration"]'),
         ],
+        timeout=10_000,
     )
+    if not reg_clicked:
+        shot(page, Path("screenshots"), "no-register-btn")
+        raise NeedUser(f"не нашёл кнопку «Зарегистрироваться», url={page.url}", kind="no_form")
+
     try:
-        page.wait_for_selector('input[name="fullName"]', timeout=15_000)
+        page.wait_for_selector('input[name="fullName"]', timeout=20_000)
     except PlaywrightTimeout:
         shot(page, Path("screenshots"), "no-register-form")
         raise NeedUser(f"нет формы регистрации, url={page.url}", kind="no_form")
@@ -1150,7 +1158,10 @@ def main() -> int:
                     email = exc.email or ""
                     if email:
                         recent_skip.add(email.lower())
-                    can_auto = exc.kind in AUTO_RETRY_KINDS and (AUTO_YES or auto_retries < MAX_AUTO_RETRIES)
+                    always_cap = exc.kind in {"no_form", "no_company", "no_key", "no_cabinet"}
+                    can_auto = exc.kind in AUTO_RETRY_KINDS and (
+                        auto_retries < MAX_AUTO_RETRIES if always_cap else (AUTO_YES or auto_retries < MAX_AUTO_RETRIES)
+                    )
                     log(f"{email or '—'}: {exc}")
                     if can_auto:
                         auto_retries += 1
